@@ -1,9 +1,17 @@
 #include <Arduino.h>
 
-void setup() {
-  // put your setup code here, to run once:
+#include "pins.h"
+#include "tlc5940.h"
+
+void setup()
+{
+  tlc_init();
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void loop()
+{
+  for (int i = 0; i < 4096; i++) {
+    tlc_set(1, i);
+    tlc_update();
+  }
 }
