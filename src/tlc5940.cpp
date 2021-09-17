@@ -5,14 +5,14 @@
 #include "pins.h"
 
 // SPI things
-#define SPI_CLK               1000000
+#define SPI_CLK               40000000
 SPIClass * tlc_spi = NULL;
 
 // GSCLK settings (uses ledc for PWM control)
 #define GSCLK_PWM_CHANNEL     0
 #define GSCLK_PWM_RESOLUTION  1
 #define GSCLK_PWM_DUTY        1
-#define GSCLK_FREQ            40000000
+#define GSCLK_FREQ            1000000
 
 // BLANK settings (uses timer and interrupts)
 #define ESP32_FREQ            80000000
@@ -59,7 +59,7 @@ void tlc_init() {
   // setup BLANK
   blank_timer = timerBegin(BLANK_TIMER_ID, BLANK_TIMER_DIV, true);
   timerAttachInterrupt(blank_timer, &onBlankTimer, true);
-  timerAlarmWrite(blank_timer, 4096, true);
+  timerAlarmWrite(blank_timer, 255, true);
   timerAlarmEnable(blank_timer);
 
   // setup SPI
@@ -73,16 +73,12 @@ void tlc_update() {
   // wait for last data to be latched
   while (needs_xlat);
 
-  tlc_spi->beginTransaction(SPISettings(SPI_CLK, MSBFIRST, SPI_MODE0));
-
   uint8_t *p = tlc_GSData;
   while (p < tlc_GSData + NUM_TLCS * 24) {
       tlc_spi->transfer(*p++);
       tlc_spi->transfer(*p++);
       tlc_spi->transfer(*p++);
   }
-
-  tlc_spi->endTransaction();
 
   // signal XLAT pulse on next BLANK cycle
   needs_xlat = 1;
