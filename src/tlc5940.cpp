@@ -112,3 +112,8 @@ void tlc_set_all(uint16_t value) {
         *p++ = (uint8_t)value;
     }
 }
+
+// clear all
+void tlc_clear_all() {
+  memset(tlc_GSData, 0, sizeof tlc_GSData);
+}

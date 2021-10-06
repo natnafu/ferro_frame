@@ -11,11 +11,9 @@ void setup()
 
 void loop()
 {
-  // test program: pulses
-  static uint8_t val = 0;
-  static int8_t dir = 1;
-  tlc_set_all(val);
-  val = val + dir;
+  static uint8_t coil;
+  tlc_clear_all();
+  tlc_set(coil++, 25);
   tlc_update();
-  if (val == 255 || val == 0) dir = dir * -1;
+  delay(100);
 }
