@@ -31,6 +31,7 @@ void command_handler() {
     switch(cmd) {
       case CMD_SET_ONE :
         tlc_set(rx_buf[0], rx_buf[1]);
+        tlc_update();
     }
   }
 }
