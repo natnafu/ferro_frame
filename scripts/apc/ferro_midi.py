@@ -1,8 +1,35 @@
 #!/usr/bin/env python3
 
 import mido
+import serial
 import threading
 
+"""
+    PCBA stuff
+"""
+MAX_DUTY = 255
+OFF_DUTY = 0
+# PCBA only supports setting one coil at a time atm
+CMD_SET_ONE = 1
+# Global variable to store the serial port
+ser = None
+
+
+def update_ferro(coil, duty):
+    """
+    Updates a single coil
+    """
+    # translate coil from 8x8 to 16x16
+    (x, y) = midi_to_xy(coil, 8)
+    coil = xy_to_midi(y, x, 16)
+
+    global ser
+    ser.write([CMD_SET_ONE, int(coil), int(duty)])
+
+
+"""
+    MIDI/APC stuff
+"""
 # sticky = turns off at next note_on
 # momentary = turns off at note_off
 modes = ["sticky", "momentary"]
@@ -12,7 +39,7 @@ mode = "momentary"
 midi_port = None
 
 # midi velocity is color
-velocity_colors = {
+colors = {
     "Black": 0,
     "Red": 72,
     "Green": 87,
@@ -26,13 +53,16 @@ velocity_colors = {
 
 # midi channel is brightness
 # 0-6 with 6 being full brightness. >6 are various blinking modes
-channel_brightness = 6
+max_brightness = 6
 
 # Make an array of all the coils (1D for now)
 coils = [False for x in range(8 * 8)]
 
 
-def apc_update(coil, type="note_on", brightness=channel_brightness, color="Red"):
+def apc_update(coil, color, type="note_on", brightness=max_brightness):
+    """
+    Updates a single APC button
+    """
     global midi_port  # Access the global variable
 
     with mido.open_output(midi_port, autoreset=True) as port:
@@ -40,23 +70,28 @@ def apc_update(coil, type="note_on", brightness=channel_brightness, color="Red")
             type,
             note=coil,
             channel=brightness,
-            velocity=velocity_colors[color],
+            velocity=colors[color],
         )
         print(f"sent: {on}")
         port.send(on)
 
+        update_ferro(coil, 0 if color == "Black" else 255)
+
 
 def apc_reset():
+    """
+    Turns off all APC buttons
+    """
     for coil in range(0, len(coils)):
         apc_update(coil=coil, color="Black")
 
 
-def xy_to_midi(x, y):
-    return x + 8 * y
+def xy_to_midi(x, y, size):
+    return x + size * y
 
 
-def midi_to_xy(midi):
-    return (midi % 8, int(midi / 8))
+def midi_to_xy(midi, size):
+    return (midi % size, int(midi / size))
 
 
 def list_midi_devices():
@@ -130,6 +165,7 @@ def midi_listener():
 
 if __name__ == "__main__":
     midi_port = select_midi_device()
+    ser = serial.Serial("/dev/tty.usbserial-0001", baudrate=115200)
 
     midi_thread = threading.Thread(
         target=midi_listener,

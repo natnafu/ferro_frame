@@ -2,36 +2,98 @@
 
 #include "tlc5940.h"
 
-#define RX_BUF_SIZE   256
 #define RX_TIMEOUT_MS 100
 
-#define CMD_NONE     0
-#define CMD_SET_ONE  1
-#define CMD_SET_ALL  2
+#define CMD_SET_N 'N'   // sets the first N coils to the N passed in values
+#define CMD_SET_ONE 'O' // sets one coil to the specified value
+#define CMD_SET_ALL 'A' // sets all coils to 0
+#define CMD_GET 'G'     // TODO
 
-static uint8_t rx_buf[RX_BUF_SIZE];
-static uint32_t rx_count;
-
-void command_init() {
+void command_init()
+{
   Serial.begin(115200);
 }
 
-void command_handler() {
-  if (Serial.available()) {
-    // Get command
-    uint8_t cmd = Serial.read();
-    // Get data
-    uint32_t cmd_time = millis();
-    rx_count = 0;
-    while (millis() - cmd_time < RX_TIMEOUT_MS) {
-      if (rx_count == RX_BUF_SIZE) break;
-      if (Serial.available()) rx_buf[rx_count++] = Serial.read();
+void commmand_process(char command, const char *data, int dataSize)
+{
+  // Process the received command and data
+  switch (command)
+  {
+
+  case CMD_SET_N:
+    Serial.printf("CMD_SET_N: setting first %i coils\n", dataSize);
+    for (int i = 0; i < dataSize; i++)
+    {
+      tlc_set(i, data[i]);
+    }
+    tlc_update();
+    break;
+
+  case CMD_SET_ONE:
+    if (dataSize != 2)
+    {
+      Serial.printf("ERROR: CMD_SET_ONE needs 2 values but %i given\n", dataSize);
+    }
+    else
+    {
+      Serial.printf("CMD_SET_ONE: SET coil %i to %i\n", data[0], data[1]);
+      tlc_set(data[0], data[1]);
+      tlc_update();
+    }
+    break;
+
+  case CMD_SET_ALL:
+    if (dataSize != 1)
+    {
+      Serial.printf("ERROR: CMD_SET_ALL needs 1 value but %i given\n", dataSize);
+    }
+    else
+    {
+      Serial.printf("CMD_SET_ALL: set all coilds to %i\n", data[0]);
+      tlc_set_all(data[0]);
+      tlc_update();
+    }
+    break;
+
+  case CMD_GET:
+    // TODO - send back the current state of the coils
+    break;
+
+  default:
+    // Unknown command
+    Serial.println("ERROR: Unknown cmd");
+    break;
+  }
+}
+
+void command_handler()
+{
+  if (Serial.available() >= 2)
+  {
+    unsigned long startTime = millis(); // Record the start time
+
+    char command = Serial.read();
+    int dataSize = Serial.read();
+
+    while (Serial.available() < dataSize)
+    {
+      if (millis() - startTime >= RX_TIMEOUT_MS)
+      {
+        // Timeout occurred, exit the loop
+        Serial.println("ERROR: RX timeout");
+        break;
+      }
+      delay(1); // Wait for more data to be available
     }
 
-    switch(cmd) {
-      case CMD_SET_ONE :
-        tlc_set(rx_buf[0], rx_buf[1]);
-        tlc_update();
+    if (Serial.available() >= dataSize)
+    {
+      char data[dataSize];
+      for (int i = 0; i < dataSize; i++)
+      {
+        data[i] = Serial.read();
+      }
+      commmand_process(command, data, dataSize);
     }
   }
 }
