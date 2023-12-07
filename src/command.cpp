@@ -6,7 +6,7 @@
 
 #define CMD_SET_N 'N'   // sets the first N coils to the N passed in values
 #define CMD_SET_ONE 'O' // sets one coil to the specified value
-#define CMD_SET_ALL 'A' // sets all coils to 0
+#define CMD_SET_ALL 'A' // sets all coils to specified values
 #define CMD_GET 'G'     // TODO
 
 void command_init()

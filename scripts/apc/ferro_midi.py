@@ -9,8 +9,9 @@ import threading
 """
 MAX_DUTY = 255
 OFF_DUTY = 0
-# PCBA only supports setting one coil at a time atm
-CMD_SET_ONE = 1
+CMD_SET_ONE = "O"
+CMD_SET_ALL = "A"
+
 # Global variable to store the serial port
 ser = None
 
@@ -19,12 +20,17 @@ def update_ferro(coil, duty):
     """
     Updates a single coil
     """
-    # translate coil from 8x8 to 16x16
+    # translate coil from 8x8 to 16x16 while rotating 180 degrees to match apc orientation
     (x, y) = midi_to_xy(coil, 8)
+    print(f"x:{x} y:{y}")
+    x = 7 - x
+    y = 7 - y
+    print(f"x:{x} y:{y}")
     coil = xy_to_midi(y, x, 16)
+    print(f"coil:{coil}")
 
     global ser
-    ser.write([CMD_SET_ONE, int(coil), int(duty)])
+    ser.write(bytes([ord(CMD_SET_ONE)]) + bytes([2, coil, duty]))
 
 
 """
@@ -33,7 +39,7 @@ def update_ferro(coil, duty):
 # sticky = turns off at next note_on
 # momentary = turns off at note_off
 modes = ["sticky", "momentary"]
-mode = "momentary"
+mode = "sticky"
 
 # Global variable to store the MIDI port
 midi_port = None
@@ -75,7 +81,7 @@ def apc_update(coil, color, type="note_on", brightness=max_brightness):
         print(f"sent: {on}")
         port.send(on)
 
-        update_ferro(coil, 0 if color == "Black" else 255)
+        update_ferro(coil, 0 if color == "Black" else MAX_DUTY)
 
 
 def apc_reset():
@@ -84,6 +90,10 @@ def apc_reset():
     """
     for coil in range(0, len(coils)):
         apc_update(coil=coil, color="Black")
+
+    # make sure ALL coils are off
+    global ser
+    ser.write(bytes([ord(CMD_SET_ALL)]) + bytes([1, 0]))
 
 
 def xy_to_midi(x, y, size):
