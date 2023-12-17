@@ -9,8 +9,6 @@ import time
 GRID_SIZE_PX = 500
 BOX_SIZE_PX = GRID_SIZE_PX / 16
 
-UPDATE_PERIOD_MS = 50
-
 last_x = -1
 last_y = -1
 last_time_ms = 0
@@ -28,8 +26,13 @@ def motion(event):
     if x > 15 or y > 15:
         return
 
+    # translate x and y to make trackpad match grid orientation when cables are
+    # pointing away.
+    x = 15 - x
+    # y = 15 - y
+
     time_ms = time.time() * 1000
-    if time_ms - last_time_ms > UPDATE_PERIOD_MS:
+    if time_ms - last_time_ms > fcomm.UPDATE_PERIOD_MS:
         last_time_ms = time_ms
     else:
         return
@@ -49,8 +52,8 @@ def motion(event):
                     state = fcomm.MAX_DUTY
                 grid.append(state)
         print(grid)
-        grid.pop()
-        ferroframe.send(fcomm.CMD_SET_N, grid)
+        grid.pop()  # can't send 256, so need to pop off 1 value
+        ferroframe.set_n(grid)
 
 
 ferroframe = fcomm.Fcomm()
